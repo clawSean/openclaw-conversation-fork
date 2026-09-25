@@ -2,17 +2,17 @@ import { parseArguments } from "./parse.js";
 import { canFallback, destinationUrl, forkWithHost, isCompatibleHost } from "./policy.js";
 
 export const HELP = [
-  "Conversation Fork — development preview",
+  "Conversation Fork",
   "/fork [title] — preserve this history and branch at the current point.",
   "Reply + /fork — branch before that saved user prompt, then replay it once in the destination.",
   "/fork --back — return to the exact previous session for this fork lineage.",
   "/fork --status — inspect this conversation's last fork operation without changing it.",
   "/split is an alias. Use /fork -- title for a title containing --options.",
   "New topics/threads are preferred; safe in-place fallback includes a return path.",
-  "Native execution is not connected in this preview. No sessions or routes are changed.",
+  "The host owns session, placement, replay, and return effects; unsupported surfaces fail closed.",
 ].join("\n");
 
-export const UNAVAILABLE = "Native fork support is not connected in this development preview. No session or conversation binding was changed. See /fork --help.";
+export const UNAVAILABLE = "This OpenClaw host does not expose compatible native fork support. No session or conversation binding was changed. See /fork --help.";
 export const UNCONFIRMED = "The operation's outcome is unconfirmed. No further fallback or replay was attempted. Use /fork --status before retrying; host reconciliation may be required.";
 const BLOCKED = new Map(Object.entries({
   unauthorized: "This operation is not authorized for this conversation. No change was made.",
@@ -29,8 +29,7 @@ function renderPlaced(result) {
   const replay = result.source === "reply" ? " The selected prompt was submitted once in the new branch." : " No model turn was started.";
   if (result.placement === "child") {
     const url = destinationUrl(result.destinationUrl);
-    if (!url) return UNCONFIRMED;
-    return `Fork created in a new topic/thread. [Open branch](${url}). The original conversation is unchanged.${replay}`;
+    return `Fork created in a new topic/thread.${url ? ` [Open branch](${url}).` : ""} The original conversation is unchanged.${replay}`;
   }
   if (result.placement !== "current") return UNCONFIRMED;
   const reason = result.fallbackReason === "permission_denied"
@@ -47,7 +46,7 @@ function renderReturned(result) {
     return url ? `Return to the previous conversation: [Open previous branch](${url}). No binding was changed.` : UNCONFIRMED;
   }
   if (result.mode !== "restored" || typeof result.shared !== "boolean") return UNCONFIRMED;
-  return `The exact previous conversation binding was restored.${result.shared ? " This restores the shared conversation for everyone using it." : ""} Neither history was deleted.`;
+  return `The previous conversation route was restored.${result.shared ? " This restores the shared conversation for everyone using it." : ""} Neither history was deleted.`;
 }
 
 export function renderResult(result) {
@@ -72,7 +71,7 @@ export function renderStatus(result) {
   let summary = renderResult(result);
   if (summary !== UNCONFIRMED && result?.status === "placed") {
     summary = result.placement === "child"
-      ? `A fork was placed in a child topic/thread. [Recorded branch](${destinationUrl(result.destinationUrl)}).`
+      ? `A fork was placed in a child topic/thread.${destinationUrl(result.destinationUrl) ? ` [Recorded branch](${destinationUrl(result.destinationUrl)}).` : ""}`
       : "A fork was placed in this conversation at the time.";
   } else if (summary !== UNCONFIRMED && result?.status === "returned") {
     summary = result.mode === "navigate"

@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 assert.ok(process.argv[2], "Usage: node scripts/verify-package.mjs <archive.tgz> [openclaw-package-root]");
 const archive = resolve(process.argv[2]);
 const expected = [
-  "LICENSE", "README.md", "docs/host-contract.md", "openclaw.plugin.json", "package.json",
+  "LICENSE", "README.md", "docs/host-contract.md", "docs/update-retest.md", "openclaw.plugin.json", "package.json",
   "src/command.js", "src/index.js", "src/native-host.js", "src/parse.js", "src/policy.js",
 ].sort();
 const listing = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" }).trim().split("\n");
@@ -32,13 +32,14 @@ try {
   assert.equal(Object.keys(pkg.optionalDependencies ?? {}).length, 0);
   assert.deepEqual(pkg.openclaw.extensions, ["./src/index.js"]);
   const plugin = (await import(pathToFileURL(join(unpacked, "src/index.js")).href)).default;
+  const { UNAVAILABLE } = await import(pathToFileURL(join(unpacked, "src/command.js")).href);
   const commands = [];
   plugin.register({ registerCommand(command) { commands.push(command); } });
   assert.deepEqual(commands.map((command) => command.name), ["fork", "split"]);
   for (const command of commands) {
     for (const args of [undefined, "--back", "--status"]) {
       const result = await command.handler({ isAuthorizedSender: true, channel: "synthetic", args });
-      assert.match(result.text, /not connected/);
+      assert.equal(result.text, UNAVAILABLE);
       assert.notEqual(result.continueAgent, true);
     }
     const denied = await command.handler({ isAuthorizedSender: false, channel: "synthetic" });
@@ -58,8 +59,8 @@ try {
     archiveSha256: createHash("sha256").update(readFileSync(archive)).digest("hex"),
     files: hashes,
     result: "passed",
-    nativeExecution: "unavailable as designed",
-    limitations: "No installation, loader discovery, live transport, fork, routing, or return proof.",
+    nativeExecution: "not exercised: direct package invocation has no resolved conversation/session capability",
+    limitations: "No installation, loader discovery, live transport, fork, routing, or return proof. Native source proof is recorded separately.",
   }, null, 2));
 } finally {
   // Remove only this invocation's disposable extraction, never the canonical tree.

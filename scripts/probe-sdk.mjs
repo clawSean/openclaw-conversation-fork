@@ -125,7 +125,7 @@ if (process.argv[2] !== "--isolated") {
     assertions,
     channels: ["telegram", "discord"],
     result: "passed",
-    nativeExecution: "unavailable as designed",
-    limitations: "No plugin loader/install, transport, session persistence, fork, routing, or return proof. Channel strings are dispatch inputs only.",
+    nativeExecution: "not exercised: synthetic dispatch has no resolved conversation/session capability",
+    limitations: "No plugin loader/install, live transport, session persistence, fork, routing, or return proof. Channel strings are dispatch inputs only.",
   }, null, 2));
 }

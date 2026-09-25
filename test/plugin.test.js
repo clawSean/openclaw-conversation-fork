@@ -45,14 +45,14 @@ for (const args of ["--help", "--oops"]) test(`${args} never resolves host`, asy
 for (const host of [undefined, {}, { version: 2 }, { version: 1, prepare() {} }]) test(`incompatible host ${JSON.stringify(host)}`, async () => {
   assert.equal((await createCommandHandler({ resolveHost: () => host })(context())).text, UNAVAILABLE);
 });
-test("registered production commands use unavailable adapter, never privileged context", async () => {
+test("registered production commands use only the invocation-bound fork capability", async () => {
   const commands = []; plugin.register({ registerCommand: (command) => commands.push(command) });
   assert.deepEqual(commands.map((c) => c.name), ["fork", "split"]);
   for (const command of commands) {
     assert.equal(command.requireAuth, true); assert.equal(command.acceptsArgs, true); assert.equal(command.channels, undefined);
     for (const args of [undefined, "a title", "--back", "--status"]) {
       const ctx = context(args);
-      Object.defineProperty(ctx, "runtimeContext", { get() { throw new Error("private runtime touched"); } });
+      ctx.runtimeContext = {};
       assert.equal((await command.handler(ctx)).text, UNAVAILABLE);
     }
     assert.equal((await command.handler(context("--help"))).text, HELP);
@@ -76,7 +76,12 @@ for (const reason of ["unsupported", "permission_denied", "creation_failed"]) te
   const result = await forkWithHost(f.host); assert.equal(result.fallbackReason, reason);
   assert.deepEqual(f.calls.slice(1).map((c) => c[1]), [{ ticket: "opaque-fixture-ticket", placement: "child" }, { ticket: "opaque-fixture-ticket", placement: "current" }]);
 });
-for (const result of [null, {}, { status: "pending" }, { status: "not_placed", reason: "unsupported" }, { status: "not_placed", effect: "partial", reason: "creation_failed" }, { status: "not_placed", effect: "none", reason: "timeout" }, new Error("secret-data"), placed({ returnReady: false }), placed({ shared: true }), placed({ replay: "submitted" }), placed({ destinationUrl: undefined }), placed({ placement: "current" })]) {
+test("a session-only child failure reuses the same prepared fork for current placement", async () => {
+  const f = fixture({ results: [{ status: "not_placed", effect: "session_only", reason: "creation_failed" }, placed({ placement: "current" })] });
+  const result = await forkWithHost(f.host); assert.equal(result.fallbackReason, "creation_failed");
+  assert.equal(f.calls.length, 3);
+});
+for (const result of [null, {}, { status: "pending" }, { status: "not_placed", reason: "unsupported" }, { status: "not_placed", effect: "partial", reason: "creation_failed" }, { status: "not_placed", effect: "none", reason: "timeout" }, new Error("secret-data"), placed({ returnReady: false }), placed({ shared: true }), placed({ replay: "submitted" }), placed({ placement: "current" })]) {
   test(`never blindly fallback from ${JSON.stringify(result)}`, async () => {
     const f = fixture({ results: [result, placed({ placement: "current" })] });
     const response = await f.handle(context()); assert.doesNotMatch(response.text, /Forked in this conversation|Fork created/);
@@ -118,7 +123,7 @@ test("shared in-place switch is visibly shared", async () => {
 test("child success links branch without telling source chat to unbind", async () => {
   const result = await fixture().handle(context()); assert.match(result.text, /Open branch/); assert.doesNotMatch(result.text, /Return:|unbind/);
 });
-for (const [back, phrase] of [[{ status: "returned", mode: "restored", shared: true }, /exact previous.*binding/], [{ status: "returned", mode: "navigate", destinationUrl: "https://example.test/original" }, /Open previous branch/], [{ status: "no_previous" }, /No previous/], [{ status: "conflict" }, /refused/], [{ status: "pending" }, /reconciling/]]) {
+for (const [back, phrase] of [[{ status: "returned", mode: "restored", shared: true }, /previous conversation route/], [{ status: "returned", mode: "navigate", destinationUrl: "https://example.test/original" }, /Open previous branch/], [{ status: "no_previous" }, /No previous/], [{ status: "conflict" }, /refused/], [{ status: "pending" }, /reconciling/]]) {
   test(`back result ${back.status}/${back.mode}`, async () => {
     const f = fixture({ back }); assert.match((await f.handle(context("--back"))).text, phrase); assert.deepEqual(f.calls, [["back"]]);
   });

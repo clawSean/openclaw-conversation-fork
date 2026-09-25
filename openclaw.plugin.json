@@ -1,8 +1,8 @@
 {
   "id": "conversation-fork",
   "name": "Conversation Fork",
-  "version": "0.1.0-dev.1",
-  "description": "Preview: /fork and /split command shell. Native execution requires host SDK enablement.",
+  "version": "0.1.0-dev.2",
+  "description": "/fork and /split commands for OpenClaw hosts with conversation-fork capability v1.",
   "activation": { "onStartup": true },
   "configSchema": { "type": "object", "properties": {}, "additionalProperties": false }
 }

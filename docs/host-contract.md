@@ -1,9 +1,9 @@
 # Native host contract experiment
 
-This is a package-local prototype interface, **not a shipped OpenClaw SDK API**.
-`src/native-host.js` deliberately returns no adapter. Installing this preview
-would not enable native forks, route changes, return, or prompt replay.
-There is no configuration setting that bypasses that boundary.
+This is an implemented candidate interface, **not a released OpenClaw SDK API**.
+`src/native-host.js` resolves only `runtimeContext.conversationFork`; stock hosts
+do not expose it and therefore fail closed. There is no configuration setting
+that bypasses that boundary.
 
 ## Ownership
 
@@ -17,7 +17,7 @@ The native session and binding owners must revalidate authorization, account,
 agent, conversation, audience, retention, active work and their own lifecycles.
 A conversation tuple or successful comparison alone is not a mutation lease.
 
-## Proposed package-local version 1
+## Candidate package-local version 1
 
 The object carries `version: 1` and these asynchronous methods:
 
@@ -27,9 +27,9 @@ The object carries `version: 1` and these asynchronous methods:
   with opaque invocation-bound `ticket`, booleans `child`, `current`, `shared`,
   and `source: tip|reply`; or `blocked`/`pending`.
 - `execute({ticket, placement: child|current})`: compose native forking and
-  placement, revalidating authority at mutation time. The native owner controls
-  durable idempotency and source snapshot fencing; repeated delivery cannot
-  create a second fork or replay the same prompt twice.
+  placement, revalidating authority at mutation time. The candidate reuses one
+  prepared session for child-to-current fallback and clears successful tickets;
+  durable crash/restart idempotency remains a live-proof requirement.
 - `back()`: restore the prior binding/default selection using an owner-issued
   mutation fence, target session lifetime and current route observations. A
   child branch may return a verified link to its original conversation instead.
@@ -43,22 +43,22 @@ The object carries `version: 1` and these asynchronous methods:
 ### Successful placement
 
 `placed` requires `placement`, `returnReady: true`, `shared`, `source`, and
-`replay: none|submitted`. A reply-selected fork requires confirmed durable
-exactly-once submission of the returned prompt and required media **after** binding.
-A tip fork must not start another model turn.
+`replay: none|submitted`. A reply-selected fork submits the returned text prompt
+once **after** binding. Media-bearing prompts currently return
+`media_unavailable`. A tip fork must not start another model turn.
 
-Child placement also requires a transport-generated HTTPS `destinationUrl` for
-the same audience. The host must put return guidance in the child; the command
-reply in the original chat links to the child and does not tell users to switch
-the unchanged source back. Current placement returns a text `/fork --back` route.
+Child placement may include a verified transport-generated HTTPS
+`destinationUrl` for the same audience. Telegram supergroup topics can generate
+one; transports without a verified URL do not invent one. Current placement
+returns a text `/fork --back` route.
 Channel-native buttons remain an integration step, not proven UI in this preview.
 
 ### Fallback and uncertainty
 
-Only `not_placed`, `effect: none`, with `reason: unsupported|permission_denied|
-creation_failed` permits current-placement fallback. `none` covers **all** fork,
-native topic and route effects, including safe compensation if attempted. Reuse
-the same ticket; the host must not create duplicate destination sessions.
+`not_placed`, `effect: session_only`, with a bounded reason permits current-chat
+placement using the same prepared fork session. `effect: none` also permits a
+fresh safe fallback. Reuse the same ticket; the host must not create a duplicate
+destination session.
 After current placement, the same narrowly validated no-effect failure is terminal:
 report a definite failure, without another fallback, replay, or reconciliation claim.
 
@@ -90,7 +90,7 @@ The plugin test suite injects this interface. It proves parsing, control flow,
 result validation and safe failure messages—not native session transactions,
 next-turn routing, durable return, channel capabilities or real buttons.
 
-Native enablement is being explored separately under the upstream
-[design issue](https://github.com/openclaw/openclaw/issues/157627). An actual
-adapter must use an accepted invocation-bound capability, not general Gateway
-privileges, copied private internals or operator secrets.
+Native enablement is implemented as an exact-head candidate under the upstream
+[design issue](https://github.com/openclaw/openclaw/issues/157627). The adapter
+uses an admitted invocation-bound capability, not general Gateway privileges or
+operator secrets. Live qualification is still pending.

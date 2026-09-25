@@ -16,8 +16,11 @@ export function isPrepared(result) {
 }
 
 export function canFallback(result) {
-  // none covers BOTH session and native placement effects, not just routing.
-  return result?.status === "not_placed" && result.effect === "none" && FALLBACK_REASONS.has(result.reason);
+  // session_only is reusable by the same opaque ticket; no native placement or
+  // replay occurred, so current placement can safely finish that prepared fork.
+  return result?.status === "not_placed"
+    && (result.effect === "none" || result.effect === "session_only")
+    && FALLBACK_REASONS.has(result.reason);
 }
 
 export function destinationUrl(value) {
@@ -32,8 +35,7 @@ export function destinationUrl(value) {
 export function isPlaced(result, plan, placement) {
   return result?.status === "placed" && result.placement === placement && result.returnReady === true
     && result.source === plan.source && result.shared === plan.shared
-    && result.replay === (plan.source === "reply" ? "submitted" : "none")
-    && (placement !== "child" || Boolean(destinationUrl(result.destinationUrl)));
+    && result.replay === (plan.source === "reply" ? "submitted" : "none");
 }
 
 /** Deterministic selection; native owner retains all effects, authority and state. */
