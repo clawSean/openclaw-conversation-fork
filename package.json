@@ -1,0 +1,18 @@
+{
+  "name": "@clawsean/openclaw-conversation-fork",
+  "version": "0.1.0-dev.1",
+  "description": "Development preview of cross-channel conversation forks with reversible placement.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=24.16.0" },
+  "files": ["src/", "docs/host-contract.md", "openclaw.plugin.json", "README.md", "LICENSE"],
+  "repository": { "type": "git", "url": "https://github.com/clawSean/openclaw-conversation-fork.git" },
+  "bugs": { "url": "https://github.com/clawSean/openclaw-conversation-fork/issues" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "node scripts/check.mjs"
+  },
+  "openclaw": {
+    "extensions": ["./src/index.js"]
+  }
+}
